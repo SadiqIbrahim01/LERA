@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  fullName     String
+  email        String   @unique
+  phoneNumber  String   @unique
+  passwordHash String
+  role         Role     @default(citizen)
+  fcmToken     String?
+  createdAt    DateTime @default(now())
+
+  // Relations
+  responderProfile  ResponderProfile?
+  emergenciesAsCtizen    Emergency[] @relation("CitizenEmergencies")
+  emergenciesAsResponder Emergency[] @relation("ResponderEmergencies")
+  notifications     Notification[]
+}
+
+model ResponderProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  type            ResponderType
+  certificationId String
+  availability    Availability @default(offline)
+  currentLat      Float?
+  currentLng      Float?
+  lastSeenAt      DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Emergency {
+  id          String          @id @default(uuid())
+  citizenId   String
+  responderId String?
+  type        EmergencyType
+  status      EmergencyStatus @default(pending)
+  district    String?
+  incidentLat Float
+  incidentLng Float
+  createdAt   DateTime        @default(now())
+  resolvedAt  DateTime?
+
+  citizen       User           @relation("CitizenEmergencies", fields: [citizenId], references: [id])
+  responder     User?          @relation("ResponderEmergencies", fields: [responderId], references: [id])
+  notifications Notification[]
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String
+  emergencyId String?
+  title       String
+  body        String
+  isRead      Boolean  @default(false)
+  sentAt      DateTime @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emergency Emergency? @relation(fields: [emergencyId], references: [id])
+}
+
+enum Role {
+  citizen
+  responder
+}
+
+enum ResponderType {
+  police
+  ambulance
+  fire
+}
+
+enum Availability {
+  online
+  offline
+  busy
+}
+
+enum EmergencyType {
+  injury
+  fire
+  medical
+  other
+}
+
+enum EmergencyStatus {
+  pending
+  dispatched
+  resolved
+  cancelled
+}
